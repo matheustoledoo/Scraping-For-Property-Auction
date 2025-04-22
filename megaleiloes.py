@@ -1,5 +1,3 @@
-
-
 # ============================================================
 # 1. Importação de módulos e configuração inicial
 # ============================================================
@@ -13,14 +11,11 @@ import re  # Para limpeza de caracteres indesejados
 import pandas as pd
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE  # Para remover caracteres ilegais no Excel
 
-
 def print_header(message):
     print("\n" + "=" * 70)
     print(f"{message}".center(70))
     print("=" * 70 + "\n")
 
-
-# Função para limpar textos removendo caracteres ilegais para o Excel
 def clean_text(text):
     if text is None:
         return ""
@@ -31,23 +26,24 @@ def clean_text(text):
 # 2. Configuração do Chrome (Headless)
 # ============================================================
 
-print_header("Chrome Configuration (Headless)")
+print_header("Chrome Configuration (Headless) para Mega Leilões")
 chrome_options = Options()
 chrome_options.add_argument("--headless")
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
 
-chrome_driver_path = "C:\\Users\\mathe\\Desktop\\chromedriver-win64\\chromedriver.exe"
+chrome_driver_path = "C:\\Users\\mathe\\Desktop\\chromedriver-win64\\chromedriver.exe"  # Atualize para o caminho do seu chromedriver
 service = Service(executable_path=chrome_driver_path)
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
 # ============================================================
-# 3. Coleta dos Links dos Imóveis de Todas as Páginas Desejadas
+# 3. Coleta dos Links dos Imóveis das Páginas Desejadas
 # ============================================================
 
-base_url = "https://www.alfaleiloes.com/leiloes/?&page={page}&categoria=35&categoria=18&categoria=19&categoria=24&categoria=23&categoria=26&categoria=27&search="
+# URL base para Mega Leilões – observe que o parâmetro de página é usado
+base_url = "https://www.megaleiloes.com.br/imoveis?tov=igbr&valor_max=5000000&tipo%5B0%5D=1&pagina={page}"
 
-print_header("Coletando Links dos Imóveis")
+print_header("Coletando Links dos Imóveis - Mega Leilões")
 paginas_input = input("Digite o número de páginas a serem raspadas (ou 'todas'): ")
 if paginas_input.lower() == "todas":
     total_pages = None
@@ -55,8 +51,8 @@ else:
     total_pages = int(paginas_input)
 print(f"[INFO] Páginas a serem raspadas: {'Todas' if total_pages is None else total_pages}")
 
-all_links = []  # Pega todos os links
-status_dict = {}  # Armazena o status de cada link
+all_links = []  # Lista para armazenar os links dos imóveis
+status_dict = {}  # Dicionário para armazenar o status de cada imóvel
 current_page = 1
 
 while True:
@@ -67,36 +63,34 @@ while True:
     print_header(f"Coletando Links - Página {current_page}")
     print(f"[INFO] Acessando: {current_url}")
     driver.get(current_url)
-    time.sleep(5)
+    time.sleep(4)  # Ajuste conforme necessário
 
-    # Itera sobre os cards de leilão
-    leilao_items = driver.find_elements(By.XPATH, '//div[@class="cards-wrapper"]/div[@class="home-leiloes-cards"]')
-    print(f"[INFO] Itens encontrados na página {current_page}: {len(leilao_items)}")
+    # Supondo que cada imóvel esteja contido em uma div com as classes "col-sm-6 col-md-4 col-lg-3"
+    imovel_cards = driver.find_elements(By.XPATH, '//div[contains(@class, "col-sm-6 col-md-4 col-lg-3")]')
+    print(f"[INFO] Itens encontrados na página {current_page}: {len(imovel_cards)}")
 
-    if len(leilao_items) == 0:
+    if len(imovel_cards) == 0:
         print("[INFO] Nenhum item encontrado. Encerrando coleta.")
         break
 
-    for index, item in enumerate(leilao_items, start=1):
+    # Itera sobre os cartões (cards)
+    for index, card in enumerate(imovel_cards, start=1):
         try:
-            # Extrai o status a partir do elemento "card-status" e seu <p> interno
-            status_element = item.find_element(By.CLASS_NAME, "card-status")
-            status_text = status_element.find_element(By.TAG_NAME, "p").text.strip()
+            # Extrai o status (por exemplo, um <span> com classe "card-status")
+            status_element = card.find_element(By.XPATH, './/div[contains(@class, "card-status")]')
+            status_text = status_element.text.strip()
         except Exception as e:
             status_text = ""
-        # Se o status for "Vendido", ignora este item
-        if status_text.lower() == "vendido":
-            print(f"  [INFO] Item {index} com status 'Vendido'. Ignorando.")
-            continue
 
         try:
-            link_element = item.find_element(By.XPATH, './/a[@class="btn-card"]')
+            # Extrai o link para o imóvel (por exemplo, de um <a> com classe "card-title")
+            link_element = card.find_element(By.XPATH, './/a[contains(@class, "card-title")]')
             link = link_element.get_attribute('href')
             all_links.append(link)
-            status_dict[link] = status_text  # Armazena o status do leilão (Aberto ou Futuro)
-            print(f"  [OK] Item {index}: {link} (Status: {status_text})")
+            status_dict[link] = status_text  # Armazena o status
+            print(f"  [OK] Card {index}: {link} (Status: {status_text})")
         except Exception as e:
-            print(f"  [ERRO] Item {index}: {e}")
+            print(f"  [ERRO] Card {index}: {e}")
 
     print(f"[INFO] Total de links coletados até a Página {current_page}: {len(all_links)}")
     current_page += 1
@@ -108,96 +102,95 @@ print(f"[INFO] Total de imóveis coletados: {len(all_links)}")
 # 4. Processamento dos Imóveis (Extração dos Dados)
 # ============================================================
 
-# (Esta parte permanece inalterada, com acréscimo do status)
-all_imoveis_data = []
+all_imoveis_data = []  # Lista que conterá os dados dos imóveis
 
 for i, link in enumerate(all_links, start=1):
     print_header(f"Processando Imóvel {i}/{len(all_links)}")
     print(f"[INFO] URL: {link}")
+    # Abre o link em uma nova aba
     driver.execute_script("window.open(arguments[0]);", link)
     driver.switch_to.window(driver.window_handles[-1])
-    time.sleep(3)
+    time.sleep(3)  # Aguarda o carregamento
 
     try:
-        titulo_leilao = driver.find_element(By.CLASS_NAME, "title-lote-leiloes").text
+        # Título do imóvel
+        titulo_leilao = driver.find_element(By.XPATH, '//h1[contains(@class, "section-header")]').text.strip()
         print(f"  [OK] Título: {titulo_leilao}")
     except Exception as e:
         titulo_leilao = None
         print(f"  [ERRO] Título: {e}")
 
     try:
-        tipo_leilao = driver.find_element(By.XPATH, '//*[@id="lotes"]/div[1]/div/h1').text
+        # Tipo de leilão
+        tipo_leilao = driver.find_element(By.XPATH, '//div[contains(@class, "batch-type")]').text.strip()
         print(f"  [OK] Tipo: {tipo_leilao}")
     except Exception as e:
         tipo_leilao = None
         print(f"  [ERRO] Tipo: {e}")
 
     try:
-        numero_processo = driver.find_element(By.XPATH, '//*[@id="lotes"]/div[1]/div/div[4]/div[1]/a').text
-        print(f"  [OK] Nº Processo (via a): {numero_processo}")
+        # Número do processo
+        numero_processo = driver.find_element(
+            By.XPATH,
+            '/html/body/div[3]/div[3]/div[2]/div[2]/div/div/div[2]/div[1]/div[2]/a'
+        ).text.strip()
+        print(f"  [OK] Nº Processo: {numero_processo}")
     except Exception as e:
-        try:
-            numero_processo = driver.find_element(By.XPATH, '//*[@id="lotes"]/div[1]/div/div[4]/div[1]/p[2]').text
-            print(f"  [OK] Nº Processo (via p[2]): {numero_processo}")
-        except Exception as e2:
-            numero_processo = None
-            print(f"  [ERRO] Nº Processo: {e2}")
+        numero_processo = None
+        print(f"  [ERRO] Nº Processo: {e}")
 
     try:
-        valor_imovel = driver.find_element(By.CLASS_NAME, "line-through").text
-        print(f"  [OK] Valor (via classe): {valor_imovel}")
+        # Valor do imóvel
+        valor_imovel = driver.find_element(By.XPATH, '//div[contains(@class, "value")]').text.strip()
+        print(f"  [OK] Valor: {valor_imovel}")
     except Exception as e:
-        try:
-            valor_imovel = driver.find_element(By.XPATH,
-                                               '/html/body/div[2]/section[2]/div[1]/div/div[5]/ul/li[3]/p').text
-            print(f"  [OK] Valor (via XPath): {valor_imovel}")
-        except Exception as e2:
-            valor_imovel = None
-            print(f"  [ERRO] Valor: {e2}")
+        valor_imovel = None
+        print(f"  [ERRO] Valor: {e}")
 
     try:
-        edital_leilao = driver.find_element(By.XPATH,
-                                            '//a[contains(translate(text(),"EDITAL","edital"), "edital")]').get_attribute('href')
+        # Extração do link para o Edital usando XPath absoluto
+        edital_leilao = driver.find_element(
+            By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[2]'
+        ).get_attribute('href')
         print(f"  [OK] Edital: {edital_leilao}")
     except Exception as e:
         edital_leilao = None
         print(f"  [ERRO] Edital: {e}")
 
     try:
-        link_docs = driver.find_element(By.XPATH,
-                                        '//a[contains(translate(text(),"DOCUMENTOS","documentos"), "documentos")]')
-        link_docs.click()
-        time.sleep(2)
-        docs_container = driver.find_element(By.CLASS_NAME, "modal-body-doc")
-        doc_links = docs_container.find_elements(By.TAG_NAME, "a")
-        nomes_docs = [
-            "Certidão de Matrícula",
-            "Laudo de Avaliação",
-            "Débitos Tributários",
-            "Débito Exequendo/Condominial",
-            "Manual de Participação"
-        ]
-        documentos_dict = {}
-        for j, doc_link in enumerate(doc_links):
-            href = doc_link.get_attribute('href')
-            if j < len(nomes_docs):
-                documentos_dict[nomes_docs[j]] = href
-            else:
-                documentos_dict[f"Documento {j + 1}"] = href
-        print("  [OK] Documentos:")
-        for nome, link_doc in documentos_dict.items():
-            print(f"       {nome:30}: {link_doc}")
-        documentos = documentos_dict
+        # Extração do link do Laudo de Avaliação
+        laudo_avaliacao = driver.find_element(
+            By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[3]'
+        ).get_attribute('href')
+        print(f"  [OK] Laudo de Avaliação: {laudo_avaliacao}")
     except Exception as e:
-        documentos = None
-        print(f"  [ERRO] Documentos: {e}")
+        laudo_avaliacao = None
+        print(f"  [ERRO] Laudo de Avaliação: {e}")
 
     try:
-        descricao_lote = driver.find_element(By.CLASS_NAME, "content").text
-        print("  [OK] Descrição do Lote extraída.")
+        # Extração do link da Matrícula
+        matricula = driver.find_element(
+            By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[4]'
+        ).get_attribute('href')
+        print(f"  [OK] Matrícula: {matricula}")
+    except Exception as e:
+        matricula = None
+        print(f"  [ERRO] Matrícula: {e}")
+
+    # Monta o dicionário de documentos
+    documentos = {
+        "Edital": edital_leilao,
+        "Laudo de Avaliação": laudo_avaliacao,
+        "Matricula": matricula
+    }
+
+    try:
+        # Extração da descrição do imóvel
+        descricao_lote = driver.find_element(By.XPATH, '//div[contains(@class, "description")]').text.strip()
+        print("  [OK] Descrição do Imóvel extraída.")
     except Exception as e:
         descricao_lote = None
-        print(f"  [ERRO] Descrição do Lote: {e}")
+        print(f"  [ERRO] Descrição do Imóvel: {e}")
 
     # Recupera o status previamente armazenado para este link
     status_leilao = status_dict.get(link, "")
@@ -213,45 +206,36 @@ for i, link in enumerate(all_links, start=1):
         "status": status_leilao
     }
     all_imoveis_data.append(imovel_info)
+
     print_header(f"Dados Extraídos do Imóvel {i}")
     for chave, valor in imovel_info.items():
         print(f"{chave:20}: {valor}")
 
+    # Fecha a aba do imóvel e retorna à aba principal
     driver.close()
     driver.switch_to.window(driver.window_handles[0])
     time.sleep(1)
 
 # ============================================================
-# (Opcional: DEBUG) Verifica o conteúdo coletado
+# 5. Exportação para Excel (XLSX)
 # ============================================================
-print_header("DEBUG: Verificando o Conteúdo de all_imoveis_data")
-for idx, imovel in enumerate(all_imoveis_data, start=1):
-    print(f"\nImóvel #{idx}:")
-    for k, v in imovel.items():
-        print(f"  {k} => {v}")
 
-# ============================================================
-# 5. Exportação para Excel (XLSX estilizado e organizado)
-# ============================================================
 import tkinter as tk
 from tkinter import filedialog
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-print_header("Preparando os dados para exportação")
+print_header("Preparando os dados para exportação para XLSX")
 
-# Lista de documentos para as colunas do Excel
+# Lista de documentos padrão para as colunas do Excel – agora com os 3 campos desejados
 docs_padrao = [
-    "Certidão de Matrícula",
+    "Edital",
     "Laudo de Avaliação",
-    "Débitos Tributários",
-    "Débito Exequendo/Condominial",
-    "Manual de Participação"
+    "Matricula"
 ]
 
-# Converte os dados coletados (all_imoveis_data) para um formato adequado ao DataFrame,
-# mapeando as chaves originais para nomes de colunas “amigáveis” e aplicando clean_text.
+# Converte os dados coletados para um DataFrame
 dados_formatados = []
 for idx, item in enumerate(all_imoveis_data, start=1):
     documentos = item.get("documentos") or {}
@@ -263,33 +247,32 @@ for idx, item in enumerate(all_imoveis_data, start=1):
         "Valor do Imóvel": clean_text(str(item.get("valor_imovel", ""))),
         "Link do Edital": clean_text(str(item.get("edital_leilao", ""))),
         "Link do Imóvel": clean_text(str(item.get("link", ""))),
-        "Descrição do Lote": clean_text(str(item.get("descricao_lote", ""))),
+        "Descrição do Imóvel": clean_text(str(item.get("descricao_lote", ""))),
         "Status": clean_text(str(item.get("status", "")))
     }
-    # Acrescenta as colunas de documentos
     for doc in docs_padrao:
         row[doc] = clean_text(str(documentos.get(doc, "")))
     dados_formatados.append(row)
 
-# Define a ordem desejada das colunas (incluindo "Status")
+# Define a ordem das colunas
 colunas = [
     "ID", "Título do Leilão", "Tipo de Leilão", "Número do Processo",
-    "Valor do Imóvel", "Link do Edital", "Link do Imóvel", "Descrição do Lote",
-    "Status"
+    "Valor do Imóvel", "Link do Edital", "Link do Imóvel", "Descrição do Imóvel", "Status"
 ] + docs_padrao
 
 df = pd.DataFrame(dados_formatados, columns=colunas)
 
 # ============================================================
-# 6. Escolha onde salvar o arquivo XLSX (janela de diálogo)
+# 6. Escolha do local para salvar o arquivo XLSX
 # ============================================================
-print_header("Escolha onde salvar a planilha XLSX profissional")
+
+print_header("Escolha onde salvar a planilha XLSX")
 root = tk.Tk()
 root.withdraw()
 root.lift()
 root.attributes("-topmost", True)
 
-nome_padrao = "leiloes_formatado.xlsx"
+nome_padrao = "leiloes_megaleiloes_formatado.xlsx"
 caminho_arquivo = filedialog.asksaveasfilename(
     initialfile=nome_padrao,
     defaultextension=".xlsx",
@@ -301,9 +284,9 @@ if caminho_arquivo:
     try:
         wb = Workbook()
         ws = wb.active
-        ws.title = "Leilões"
+        ws.title = "Leilões Mega"
 
-        # Estilos gerais
+        # Estilos
         header_font = Font(bold=True, color="FFFFFF")
         header_fill = PatternFill("solid", fgColor="4F81BD")
         cell_font = Font(color="000000")
@@ -314,7 +297,6 @@ if caminho_arquivo:
             top=Side(style='thin'),
             bottom=Side(style='thin')
         )
-        # Lista de colunas com links para formatação de hyperlink
         link_columns = ["Link do Edital", "Link do Imóvel"] + docs_padrao
 
         # Escreve os dados na planilha
@@ -334,7 +316,7 @@ if caminho_arquivo:
                         cell.hyperlink = value
                         cell.font = Font(color="0000FF", underline="single")
 
-        # Autoajuste de largura das colunas (limite máximo de 80)
+        # Ajuste de largura das colunas
         for col in ws.columns:
             max_len = 0
             col_letter = col[0].column_letter
@@ -357,6 +339,7 @@ else:
 # ============================================================
 # 7. Finaliza o Navegador
 # ============================================================
+
 print_header("Finalizando o Scraping e Fechando o Navegador...")
 driver.quit()
 
