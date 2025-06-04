@@ -13,6 +13,7 @@ import time
 import pandas as pd
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE  # Para remover caracteres ilegais no Excel
 import re
+import os
 
 
 def print_header(message):
@@ -49,7 +50,9 @@ driver = webdriver.Chrome(service=service, options=chrome_options)
 base_url = "https://www.alfaleiloes.com/leiloes/?&page={page}&categoria=35&categoria=18&categoria=19&categoria=24&categoria=23&categoria=26&categoria=27&search="
 
 print_header("Coletando Links dos Imóveis")
-paginas_input = input("Digite o número de páginas a serem raspadas (ou 'todas'): ")
+paginas_input = os.getenv("PAGINAS")
+if not paginas_input:
+    paginas_input = input("Digite o número de páginas a serem raspadas (ou 'todas'): ")
 if paginas_input.lower() == "todas":
     total_pages = None
 else:
@@ -289,18 +292,20 @@ df = pd.DataFrame(dados_formatados, columns=colunas)
 # 6. Escolha onde salvar o arquivo XLSX (janela de diálogo)
 # ============================================================
 print_header("Escolha onde salvar a planilha XLSX profissional")
-root = tk.Tk()
-root.withdraw()
-root.lift()
-root.attributes("-topmost", True)
+caminho_arquivo = os.getenv("OUTPUT_FILE")
+if not caminho_arquivo:
+    root = tk.Tk()
+    root.withdraw()
+    root.lift()
+    root.attributes("-topmost", True)
 
-nome_padrao = "leiloes_formatado.xlsx"
-caminho_arquivo = filedialog.asksaveasfilename(
-    initialfile=nome_padrao,
-    defaultextension=".xlsx",
-    filetypes=[("Planilhas Excel", "*.xlsx")],
-    title="Salvar planilha como"
-)
+    nome_padrao = "leiloes_formatado.xlsx"
+    caminho_arquivo = filedialog.asksaveasfilename(
+        initialfile=nome_padrao,
+        defaultextension=".xlsx",
+        filetypes=[("Planilhas Excel", "*.xlsx")],
+        title="Salvar planilha como"
+    )
 
 if caminho_arquivo:
     try:

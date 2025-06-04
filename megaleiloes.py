@@ -9,6 +9,7 @@ from selenium.webdriver.chrome.service import Service  # Para configurar o Chrom
 from selenium.webdriver.chrome.options import Options  # Para definir opções do Chrome (ex: modo headless)
 import time  # Para utilizar time.sleep()
 import re  # Para limpeza de caracteres indesejados
+import os
 import pandas as pd
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE  # Para remover caracteres ilegais no Excel
 
@@ -45,7 +46,9 @@ driver = webdriver.Chrome(service=service, options=chrome_options)
 base_url = "https://www.megaleiloes.com.br/imoveis?tov=igbr&valor_max=5000000&tipo%5B0%5D=1&pagina={page}"
 
 print_header("Coletando Links dos Imóveis - Mega Leilões")
-paginas_input = input("Digite o número de páginas a serem raspadas (ou 'todas'): ")
+paginas_input = os.getenv("PAGINAS")
+if not paginas_input:
+    paginas_input = input("Digite o número de páginas a serem raspadas (ou 'todas'): ")
 if paginas_input.lower() == "todas":
     total_pages = None
 else:
@@ -268,18 +271,20 @@ df = pd.DataFrame(dados_formatados, columns=colunas)
 # ============================================================
 
 print_header("Escolha onde salvar a planilha XLSX")
-root = tk.Tk()
-root.withdraw()
-root.lift()
-root.attributes("-topmost", True)
+caminho_arquivo = os.getenv("OUTPUT_FILE")
+if not caminho_arquivo:
+    root = tk.Tk()
+    root.withdraw()
+    root.lift()
+    root.attributes("-topmost", True)
 
-nome_padrao = "leiloes_megaleiloes_formatado.xlsx"
-caminho_arquivo = filedialog.asksaveasfilename(
-    initialfile=nome_padrao,
-    defaultextension=".xlsx",
-    filetypes=[("Planilhas Excel", "*.xlsx")],
-    title="Salvar planilha como"
-)
+    nome_padrao = "leiloes_megaleiloes_formatado.xlsx"
+    caminho_arquivo = filedialog.asksaveasfilename(
+        initialfile=nome_padrao,
+        defaultextension=".xlsx",
+        filetypes=[("Planilhas Excel", "*.xlsx")],
+        title="Salvar planilha como"
+    )
 
 if caminho_arquivo:
     try:
