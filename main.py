@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-from megaleiloes import scrape_megaleiloes
-from alfaleiloes import scrape_alfaleiloes
+
 
 st.title("Interface de Scraping de Leilões")
 

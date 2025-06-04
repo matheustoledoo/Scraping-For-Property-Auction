@@ -2,6 +2,7 @@
 # 1. Importação de módulos e configuração inicial
 # ============================================================
 
+import chromedriver_autoinstaller
 from selenium import webdriver  # Para controlar o navegador
 from selenium.webdriver.common.by import By  # Para localizar elementos
 from selenium.webdriver.chrome.service import Service  # Para configurar o ChromeDriver
@@ -32,7 +33,7 @@ chrome_options.add_argument("--headless")
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
 
-chrome_driver_path = "C:\\Users\\mathe\\Desktop\\chromedriver-win64\\chromedriver.exe"  # Atualize para o caminho do seu chromedriver
+chrome_driver_path = chromedriver_autoinstaller.install()  # Atualize para o caminho do seu chromedriver
 service = Service(executable_path=chrome_driver_path)
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
