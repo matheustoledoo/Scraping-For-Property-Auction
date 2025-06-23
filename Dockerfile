@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y \
     libfontconfig1 \
     libxss1 \
     libappindicator1 \
-    libindicator7 \
     fonts-liberation \
     libatk-bridge2.0-0 \
     libgtk-3-0 \
@@ -39,4 +38,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 8080
 
 # Comando de inicialização
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
