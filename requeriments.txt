@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-selenium
-pandas
-openpyxl
-chromedriver-autoinstaller
-
