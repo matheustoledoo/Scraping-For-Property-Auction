@@ -1,9 +1,12 @@
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
-import logging
 import time
+import logging
 from typing import List, Tuple
+
+import pandas as pd
+import chromedriver_autoinstaller
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -14,12 +17,25 @@ BASE_URL = (
     "tipo%5B0%5D=1&pagina={page}"
 )
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
-}
+
+def init_driver() -> webdriver.Chrome:
+    """
+    Instala e inicializa o ChromeDriver em modo headless.
+    """
+    chromedriver_autoinstaller.install()
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(options=options)
+    return driver
 
 
-def collect_links(pages: int) -> List[Tuple[str, str]]:
+def collect_links(driver: webdriver.Chrome, pages: int) -> List[Tuple[str, str]]:
+    """
+    Coleta todos os links de imóveis e seus status. Se pages < 0, varre até não encontrar mais cards.
+    Retorna lista de tuplas (link, status).
+    """
     all_links = []
     current_page = 1
 
@@ -29,76 +45,103 @@ def collect_links(pages: int) -> List[Tuple[str, str]]:
 
         url = BASE_URL.format(page=current_page)
         logger.info(f"Acessando página {current_page}: {url}")
-        response = requests.get(url, headers=HEADERS)
-        soup = BeautifulSoup(response.text, "html.parser")
+        driver.get(url)
+        time.sleep(3)
 
-        cards = soup.select('div[class*="col-md-4"]')
+        cards = driver.find_elements(By.XPATH,
+            '//div[contains(@class, "col-sm-6 col-md-4 col-lg-3")]'
+        )
         logger.info(f"Encontrados {len(cards)} imóveis na página {current_page}.")
         if not cards:
             break
 
         for card in cards:
             try:
-                link_tag = card.select_one("a.card-title")
-                status_tag = card.select_one("div.card-status")
-
-                if link_tag and link_tag.get("href"):
-                    link = link_tag["href"]
-                    status = status_tag.get_text(strip=True) if status_tag else ""
-                    all_links.append((link, status))
-            except Exception as e:
-                logger.warning(f"Erro ao coletar card: {e}")
+                status = card.find_element(
+                    By.XPATH, './/div[contains(@class, "card-status")]'
+                ).text.strip()
+            except Exception:
+                status = ""
+            try:
+                link = card.find_element(
+                    By.XPATH, './/a[contains(@class, "card-title")]'
+                ).get_attribute('href')
+            except Exception:
                 continue
+            all_links.append((link, status))
 
         current_page += 1
-        time.sleep(1)
 
     return all_links
 
 
-def process_links(link_status: List[Tuple[str, str]]) -> List[dict]:
+def process_links(driver: webdriver.Chrome, link_status: List[Tuple[str, str]]) -> List[dict]:
+    """
+    Visita cada link de imóvel, extrai informações e retorna lista de dicionários.
+    """
     results = []
 
     for idx, (link, status) in enumerate(link_status, start=1):
         logger.info(f"Processando {idx}/{len(link_status)}: {link}")
-        try:
-            response = requests.get(link, headers=HEADERS)
-            soup = BeautifulSoup(response.text, "html.parser")
+        driver.execute_script("window.open(arguments[0]);", link)
+        driver.switch_to.window(driver.window_handles[-1])
+        time.sleep(2)
 
-            def get_text(selector):
-                el = soup.select_one(selector)
-                return el.get_text(strip=True) if el else None
+        data = {"link": link, "status": status}
 
-            def get_href_by_index(index: int):
-                try:
-                    anchors = soup.select("div.documents a")
-                    return anchors[index]["href"] if len(anchors) > index else None
-                except Exception:
-                    return None
+        # Helpers para extrair campos
+        def get_text(xpath: str) -> str:
+            try:
+                return driver.find_element(By.XPATH, xpath).text.strip()
+            except Exception:
+                return None
 
-            data = {
-                "link": link,
-                "status": status,
-                "titulo_leilao": get_text("h1.section-header"),
-                "tipo_leilao": get_text("div.batch-type"),
-                "numero_processo": get_text("div.batch-information a"),
-                "valor_imovel": get_text("div.value"),
-                "edital_leilao": get_href_by_index(1),
-                "laudo_avaliacao": get_href_by_index(2),
-                "matricula": get_href_by_index(3),
-                "descricao_lote": get_text("div.description")
-            }
+        data.update({
+            "titulo_leilao": get_text('//h1[contains(@class, "section-header")]'),
+            "tipo_leilao": get_text('//div[contains(@class, "batch-type")]'),
+            "numero_processo": get_text(
+                '/html/body/div[3]/div[3]/div[2]/div[2]/div/div/div[2]/div[1]/div[2]/a'
+            ),
+            "valor_imovel": get_text('//div[contains(@class, "value")]'),
+            "edital_leilao": driver.find_element(
+                By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[2]'
+            ).get_attribute('href') if driver.find_elements(
+                By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[2]'
+            ) else None,
+            "laudo_avaliacao": driver.find_element(
+                By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[3]'
+            ).get_attribute('href') if driver.find_elements(
+                By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[3]'
+            ) else None,
+            "matricula": driver.find_element(
+                By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[4]'
+            ).get_attribute('href') if driver.find_elements(
+                By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[4]'
+            ) else None,
+            "descricao_lote": get_text('//div[contains(@class, "description")]')
+        })
 
-            results.append(data)
-        except Exception as e:
-            logger.warning(f"Erro ao processar {link}: {e}")
+        results.append(data)
+
+        # Fecha aba e retorna
+        driver.close()
+        driver.switch_to.window(driver.window_handles[0])
         time.sleep(1)
 
     return results
 
 
 def run(pages: int) -> pd.DataFrame:
-    links = collect_links(pages)
-    raw_data = process_links(links)
+    """
+    Executa todo o fluxo de scraping e retorna um DataFrame com os dados.
+    pages: número de páginas a raspar; -1 para todas.
+    """
+    driver = init_driver()
+    try:
+        links = collect_links(driver, pages)
+        raw_data = process_links(driver, links)
+    finally:
+        driver.quit()
+
     df = pd.DataFrame(raw_data)
     return df
