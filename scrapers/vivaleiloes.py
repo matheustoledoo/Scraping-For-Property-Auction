@@ -2,7 +2,7 @@ import time
 import logging
 import os
 import pandas as pd
-import chromedriver_autoinstaller
+# chromedriver_autoinstaller removed to use shipped driver
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -13,7 +13,6 @@ from selenium.webdriver.support import expected_conditions as EC
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Alterado para usar query string em vez de fragment (JS client-side)
 BASE_URL = (
     "https://www.vivaleiloes.com.br/busca/"
     "?Engine=Start&Pagina={page}&Busca=&Mapa=&ID_Categoria=55&PaginaIndex=3"
@@ -21,33 +20,46 @@ BASE_URL = (
 
 def init_driver() -> webdriver.Chrome:
     """
-    Inicializa o ChromeDriver usando o Chromium instalado no Docker.
+    Usa o Chromium e ChromeDriver instalados no container, com anti-detect.
     """
     chrome_bin = os.environ.get("CHROME_BIN", "/usr/bin/chromium")
-    chromedriver_path = os.environ.get("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
-    chromedriver_autoinstaller.install()
+    driver_path = os.environ.get("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
+
     options = Options()
     options.binary_location = chrome_bin
-    options.add_argument("--headless")
+    # cabeçalho comum de desktop para evitar bot-block
+    options.add_argument(
+        "--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/137.0.7151.119 Safari/537.36"
+    )
+    options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    service = Service(executable_path=chromedriver_path)
-    return webdriver.Chrome(service=service, options=options)
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("useAutomationExtension", False)
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    service = Service(executable_path=driver_path)
+    driver = webdriver.Chrome(service=service, options=options)
+    # remove flag webdriver
+    driver.execute_cdp_cmd(
+        'Page.addScriptToEvaluateOnNewDocument',
+        {'source': 'Object.defineProperty(navigator, "webdriver", {get: () => undefined});'}
+    )
+    return driver
+
 
 def collect_links(driver: webdriver.Chrome, pages: int) -> list[tuple[str, str]]:
     all_links = []
-    for current_page in range(1, pages + 1 if pages >= 0 else 999):
+    for current_page in range(1, pages + 1 if pages >= 0 else 50):
         url = BASE_URL.format(page=current_page)
         logger.info(f"Acessando Viva Leilões página {current_page}: {url}")
         driver.get(url)
-        # espera até os cards carregarem via JS
         try:
             WebDriverWait(driver, 10).until(
                 EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'div.dg-leiloes-item-col'))
             )
-        except:
+        except Exception:
             logger.info("Nenhum card encontrado ou timeout na página.")
             break
         cards = driver.find_elements(By.CSS_SELECTOR, 'div.dg-leiloes-item-col')
@@ -63,10 +75,10 @@ def collect_links(driver: webdriver.Chrome, pages: int) -> list[tuple[str, str]]
             except:
                 continue
             all_links.append((link, status))
-        # opcional: scroll down para carregar mais se houver lazy-loading
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(1)
     return all_links
+
 
 def process_links(driver: webdriver.Chrome, link_status: list[tuple[str, str]]) -> list[dict]:
     results = []
@@ -104,10 +116,13 @@ def process_links(driver: webdriver.Chrome, link_status: list[tuple[str, str]]) 
         time.sleep(0.5)
     return results
 
+
 def run(pages: int) -> pd.DataFrame:
     driver = init_driver()
     try:
         links = collect_links(driver, pages)
+        if not links:
+            logger.warning("Nenhum link coletado")
         raw = process_links(driver, links)
     finally:
         driver.quit()
