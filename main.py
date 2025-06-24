@@ -117,7 +117,15 @@ async def scrape(
             s = wb.create_sheet("Resumo")
             s.sheet_view.showGridLines = False
 
-            combined = pd.concat(dfs.values(), ignore_index=True)
+            combined = pd.concat(
+                [df for df in dfs.values() if "_valor_num" in df.columns],
+                ignore_index=True
+            )
+
+            if combined.empty:
+                s["A1"] = "Nenhum dado disponível para gerar o resumo."
+                return
+
             vals = combined["_valor_num"]
 
             # ---- Título ----
