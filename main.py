@@ -108,7 +108,8 @@ async def scrape(
 
             ws.freeze_panes = "A2"
             for col in ws.columns:
-                w = min(max(len(str(c.value)) for c in col if c.value) + 5, 30)
+                values = [len(str(c.value)) for c in col if c.value]
+                w = min(max(values) + 5, 30) if values else 10
                 ws.column_dimensions[col[0].column_letter].width = w
 
         # aba Resumo
