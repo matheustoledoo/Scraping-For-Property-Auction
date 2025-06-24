@@ -1,10 +1,12 @@
 import time
 import logging
+import os
 import pandas as pd
 import chromedriver_autoinstaller
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,12 +17,27 @@ BASE_URL = (
 )
 
 def init_driver() -> webdriver.Chrome:
+    """
+    Inicializa o ChromeDriver usando o Chromium instalado no Docker.
+    """
+    # Forçar uso dos binários instalados no container
+    chrome_bin = os.environ.get("CHROME_BIN", "/usr/bin/chromium")
+    chromedriver_path = os.environ.get("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
+
+    # Instala o ChromeDriver compatível com a versão do Chromium
     chromedriver_autoinstaller.install()
+
     options = Options()
+    options.binary_location = chrome_bin
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    return webdriver.Chrome(options=options)
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+
+    service = Service(executable_path=chromedriver_path)
+    return webdriver.Chrome(service=service, options=options)
+
 
 def collect_links(driver: webdriver.Chrome, pages: int) -> list[tuple[str, str]]:
     all_links = []
@@ -55,6 +72,7 @@ def collect_links(driver: webdriver.Chrome, pages: int) -> list[tuple[str, str]]
         current_page += 1
     return all_links
 
+
 def process_links(driver: webdriver.Chrome, link_status: list[tuple[str, str]]) -> list[dict]:
     results = []
     for idx, (link, status) in enumerate(link_status, start=1):
@@ -88,6 +106,7 @@ def process_links(driver: webdriver.Chrome, link_status: list[tuple[str, str]]) 
         driver.switch_to.window(driver.window_handles[0])
         time.sleep(1)
     return results
+
 
 def run(pages: int) -> pd.DataFrame:
     driver = init_driver()
