@@ -1,6 +1,5 @@
-from fastapi import FastAPI, Form
-from fastapi.responses import StreamingResponse, HTMLResponse
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Form, HTTPException
+from fastapi.responses import StreamingResponse, FileResponse
 import io
 import pandas as pd
 from scrapers.megaleiloes import run as scrape_mega
@@ -61,6 +60,10 @@ async def scrape(
 
         dfs[name] = df
 
+    valid_dfs = [df for df in dfs.values() if not df.empty]
+    if not valid_dfs:
+        raise HTTPException(status_code=400, detail="Nenhum dado encontrado nos sites selecionados.")
+
     # gera Excel
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -117,15 +120,7 @@ async def scrape(
             s = wb.create_sheet("Resumo")
             s.sheet_view.showGridLines = False
 
-            combined = pd.concat(
-                [df for df in dfs.values() if "_valor_num" in df.columns],
-                ignore_index=True
-            )
-
-            if combined.empty:
-                s["A1"] = "Nenhum dado disponível para gerar o resumo."
-                return
-
+            combined = pd.concat(valid_dfs, ignore_index=True)
             vals = combined["_valor_num"]
 
             # ---- Título ----
@@ -195,5 +190,6 @@ async def scrape(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="leiloes.xlsx"'}
     )
+
 
 # uvicorn main:app --reload --host 127.0.0.1 --port 8080
