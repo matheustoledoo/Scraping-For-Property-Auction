@@ -1,5 +1,3 @@
-# scrapers/saraivaleiloes.py
-
 import time
 import re
 import pandas as pd
@@ -7,6 +5,7 @@ import chromedriver_autoinstaller
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+
 
 def init_driver() -> webdriver.Chrome:
     """
@@ -19,15 +18,15 @@ def init_driver() -> webdriver.Chrome:
     options.add_argument("--disable-dev-shm-usage")
     return webdriver.Chrome(options=options)
 
-def collect_links(driver: webdriver.Chrome, pages: int) -> list[tuple[str,str]]:
+
+def collect_links(driver: webdriver.Chrome, pages: int) -> list[tuple[str, str]]:
     """
     Coleta todos os links de imóveis e seus status.
     pages < 0 percorre até não achar mais.
     Retorna lista de tuplas (link, status).
     """
     BASE_URL = "https://www.saraivaleiloes.com.br/buscador?page={page}&categoria=2"
-    all_links = []
-    status_dict = {}
+    all_links: list[tuple[str, str]] = []
     current = 1
 
     while True:
@@ -64,12 +63,13 @@ def collect_links(driver: webdriver.Chrome, pages: int) -> list[tuple[str,str]]:
 
     return all_links
 
-def process_links(driver: webdriver.Chrome, link_status: list[tuple[str,str]]) -> list[dict]:
+
+def process_links(driver: webdriver.Chrome, link_status: list[tuple[str, str]]) -> list[dict]:
     """
     Visita cada link coletado e extrai dados.
     Retorna lista de dicionários.
     """
-    results = []
+    results: list[dict] = []
 
     for idx, (link, status) in enumerate(link_status, start=1):
         print(f"[Saraiva] Processando {idx}/{len(link_status)}: {link}")
@@ -83,14 +83,28 @@ def process_links(driver: webdriver.Chrome, link_status: list[tuple[str,str]]) -
             except:
                 return None
 
+        # Obter local (cidade - estado) e separar
+        raw_loc = get_text('/html/body/section[4]/div/div[1]/div[1]/div/strong')
+        if raw_loc:
+            parts = raw_loc.split('-', 1)
+            cidade = parts[0].strip()
+            estado = parts[1].strip()
+        else:
+            cidade = None
+            estado = None
+
         data = {
             "link": link,
             "status": status,
             "titulo_leilao": get_text('/html/body/section[4]/div/div[1]/div[1]/h1'),
+            "cidade": cidade,
+            "estado": estado,
             "tipo_leilao": get_text('/html/body/section[4]/div/div[2]/div/div[5]/ul[2]/li[4]/p'),
             "numero_processo": get_text('//span[contains(@class,"numeroProcessoTxt")]'),
-            "valor_imovel": get_text('/html/body/section[4]/div/div[2]/div/div[2]/div/div[1]/ul[2]/li[2]/div[2]/strong')
-                             or get_text('/html/body/section[4]/div/div[2]/div/div[2]/div/div[1]/ul[2]/li[1]/div[2]/strong'),
+            "valor_imovel": (
+                get_text('/html/body/section[4]/div/div[2]/div/div[2]/div/div[1]/ul[2]/li[2]/div[2]/strong')
+                or get_text('/html/body/section[4]/div/div[2]/div/div[2]/div/div[1]/ul[2]/li[1]/div[2]/strong')
+            ),
             "edital_leilao": None,
             "matricula": None,
             "descricao_lote": get_text('//div[contains(@class,"line-text")]')
@@ -121,10 +135,11 @@ def process_links(driver: webdriver.Chrome, link_status: list[tuple[str,str]]) -
 
     return results
 
+
 def run(pages: int) -> pd.DataFrame:
     """
     Executa o scraping e retorna DataFrame com colunas:
-    link, status, titulo_leilao, tipo_leilao, numero_processo,
+    link, status, titulo_leilao, cidade, estado, tipo_leilao, numero_processo,
     valor_imovel, edital_leilao, matricula, descricao_lote.
     pages: número de páginas a raspar; -1 para todas.
     """
