@@ -46,7 +46,7 @@ def collect_links(driver: webdriver.Chrome, pages: int) -> List[Tuple[str, str]]
         driver.get(url)
         time.sleep(3)
 
-        cards = driver.find_elements(By.XPATH, '//div[contains(@class,"dg-leiloes-item-col")]')
+        cards = driver.find_elements(By.XPATH, '//div[contains(@class,"col-xs-12 col-sm-6 col-md-4 col-lg-3 dg-leiloes-item-col ")]')
         logger.info(f"Encontrados {len(cards)} lotes na página {current_page}.")
         if not cards:
             break
