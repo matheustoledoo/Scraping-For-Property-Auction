@@ -98,11 +98,13 @@ def process_links(driver: webdriver.Chrome, link_status: List[Tuple[str, str]]) 
 
         data.update({
             "titulo_leilao": get_text('//h1[contains(@class, "section-header")]'),
+            "estado": get_text('/html/body/div[3]/div[3]/div[2]/div[2]/div/ol/li[4]/a/span'),
+            "cidade": get_text('/html/body/div[3]/div[3]/div[2]/div[2]/div/ol/li[5]/a/span'),
             "tipo_leilao": get_text('//div[contains(@class, "batch-type")]'),
             "numero_processo": get_text(
                 '/html/body/div[3]/div[3]/div[2]/div[2]/div/div/div[2]/div[1]/div[2]/a'
             ),
-            "valor_imovel": get_text('//div[contains(@class, "value")]'),
+            "valor_imovel": get_text('//span[contains(@class, "card-instance-value")]') or get_text('//div[contains(@class, "value")]'),
             "edital_leilao": driver.find_element(
                 By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[2]'
             ).get_attribute('href') if driver.find_elements(
