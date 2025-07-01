@@ -96,15 +96,32 @@ def process_links(driver: webdriver.Chrome, link_status: List[Tuple[str, str]]) 
             except Exception:
                 return None
 
+        # pega a string completa, ex:
+        raw_loc = get_text('/html/body/div[3]/div[3]/div[2]/div[2]/div/div/div[1]/div[1]/div[2]')
+        if raw_loc:
+            # separa em partes pelo caractere “,”
+            parts = [p.strip() for p in raw_loc.split(',')]
+            if len(parts) >= 2:
+                # o último elemento é sempre o estado
+                estado = parts[-1]
+                # o penúltimo elemento é a cidade
+                cidade = parts[-2]
+            else:
+                cidade = None
+                estado = None
+        else:
+            cidade = None
+            estado = None
+
         data.update({
             "titulo_leilao": get_text('//h1[contains(@class, "section-header")]'),
-            "estado": get_text('/html/body/div[3]/div[3]/div[2]/div[2]/div/ol/li[4]/a/span'),
-            "cidade": get_text('/html/body/div[3]/div[3]/div[2]/div[2]/div/ol/li[5]/a/span'),
+            "cidade": cidade,
+            "estado": estado,
             "tipo_leilao": get_text('//div[contains(@class, "batch-type")]'),
             "numero_processo": get_text(
                 '/html/body/div[3]/div[3]/div[2]/div[2]/div/div/div[2]/div[1]/div[2]/a'
             ),
-            "valor_imovel": get_text('//span[contains(@class, "card-instance-value")]') or get_text('//div[contains(@class, "value")]'),
+            "valor_imovel": get_text('//span[contains(@class, "card-instance-value")]') or get_text('/html/body/div[3]/div[3]/div[1]/div[2]/div/div[2]'),
             "edital_leilao": driver.find_element(
                 By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[2]'
             ).get_attribute('href') if driver.find_elements(
