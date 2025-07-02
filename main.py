@@ -81,14 +81,14 @@ async def scrape(
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         for sheet_name, df in dfs.items():
-            # grava planilha sem coluna auxiliar
+            # escreve no Excel
             df.drop(columns=["_valor_num"], errors="ignore") \
               .to_excel(writer, index=False, sheet_name=sheet_name)
 
             ws = writer.sheets[sheet_name]
             max_col, max_row = ws.max_column, ws.max_row
 
-            # cria tabela com estilo
+            # cria tabela
             tbl = Table(
                 displayName=sheet_name.replace(" ", "") + "_Tbl",
                 ref=f"A1:{chr(64+max_col)}{max_row}"
@@ -106,8 +106,8 @@ async def scrape(
                             cell.hyperlink = cell.value
                             cell.font = Font(color="0000FF", underline="single")
 
-            # **formatação condicional**: valores acima da média
-            if "_valor_num" in df.columns:
+            # formatação condicional **só se houver ao menos 1 linha de dados**
+            if max_row >= 2 and "_valor_num" in df.columns:
                 avg = df["_valor_num"].mean()
                 ci  = df.columns.get_loc("_valor_num") + 1
                 rng = f"{chr(64+ci)}2:{chr(64+ci)}{max_row}"
@@ -121,7 +121,8 @@ async def scrape(
                 )
 
             ws.freeze_panes = "A2"
-            # ajusta largura de colunas
+
+            # ajusta largura das colunas
             for col in ws.columns:
                 lengths = [len(str(c.value)) for c in col if c.value]
                 w = min(max(lengths + [0]) + 5, 30)
@@ -133,5 +134,6 @@ async def scrape(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="leiloes.xlsx"'}
     )
+
 
 # uvicorn main:app --reload --host 127.0.0.1 --port 8080
