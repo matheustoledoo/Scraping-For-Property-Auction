@@ -104,59 +104,55 @@
     .input-icon input, .input-icon select {
       padding-left: 2.5rem !important;
     }
-    /* Advanced panel */
-    #advancedFilters {
-      background: #eef5ff;
-      border-radius: 0.5rem;
-      padding: 1rem;
-      margin-bottom: 1.5rem;
+
+    /* --- LAYOUT TRÊS COLUNAS --- */
+    .filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 1rem;
     }
-/* --- Container rolável para a lista de estados --- */
-.states-container {
-  max-height: 300px;         /* ajusta conforme necessário */
-  overflow-y: auto;
-  padding-right: 0.5rem;     /* espaço para scrollbar não sobrepor */
-  margin-top: 0.5rem;
-}
+    .filter-column {
+      flex: 1;
+      min-width: 200px;
+    }
+    .filter-column .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+    }
 
-/* --- Lista em coluna única --- */
-.states-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-/* --- Cada item ocupa 100% da largura do container --- */
-.states-list .state-item {
-  display: flex;
-  align-items: center;
-  background: #fff;
-  border-radius: 0.5rem;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-  transition: background 0.2s;
-}
-
-.states-list .state-item:hover {
-  background: rgba(52,172,224,0.1);
-}
-
-.states-list .state-item input {
-  margin-right: 0.75rem;
-}
-
-.states-list .state-item label {
-  font-size: 0.95rem;
-  cursor: pointer;
-}
-
-/* --- Responsividade apenas garante largura total --- */
-@media (min-width: 576px) {
-  .states-list .state-item {
-    padding: 0.6rem;
-  }
-}
+    /* --- LISTAS ROLÁVEIS --- */
+    .scrollable-list {
+      max-height: 250px;
+      overflow-y: auto;
+      background: #fff;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      padding: 0.5rem;
+    }
+    .scrollable-list ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .scrollable-list li {
+      display: flex;
+      align-items: center;
+      padding: 0.4rem 0.6rem;
+      border-radius: 0.5rem;
+      transition: background 0.2s;
+    }
+    .scrollable-list li:hover {
+      background: rgba(52,172,224,0.1);
+    }
+    .scrollable-list input {
+      margin-right: 0.6rem;
+    }
+    .scrollable-list label {
+      margin: 0;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
 
     /* Footer */
     footer {
@@ -200,16 +196,16 @@
   </section>
 
   <!-- Form -->
-  <!-- Form -->
   <main class="container">
     <div class="row justify-content-center">
       <div class="col-lg-8">
         <div class="card-scraper">
           <h2 class="text-center mb-4">Configurações de Raspagem</h2>
+
           <form method="post" action="/scrape" target="_blank"
                 onsubmit="this.querySelector('button').textContent='Carregando…';">
 
-            <!-- Sites -->
+            <!-- SITES -->
             <div class="mb-4">
               <label class="form-label">Sites a consultar</label>
               <div class="btn-group w-100" role="group">
@@ -227,21 +223,25 @@
               </div>
             </div>
 
-            <!-- Advanced Filters -->
+            <!-- VALOR MÍNIMO / MÁXIMO -->
+            <div class="row gx-3 mb-3">
+              <div class="col-md-6 input-icon">
+                <label class="form-label">Valor Mínimo</label>
+                <input type="number" step="0.01" class="form-control" name="min_valor" placeholder="Ex: 100.000"/>
+              </div>
+              <div class="col-md-6 input-icon">
+                <label class="form-label">Valor Máximo</label>
+                <input type="number" step="0.01" class="form-control" name="max_valor" placeholder="Ex: 500.000"/>
+              </div>
+            </div>
+
+            <!-- STATUS / ESTADOS / CIDADES -->
             <div id="advancedFilters">
               <h5>Filtros Avançados</h5>
-              <div class="row gx-3 mb-3">
-                <div class="col-md-6 input-icon">
-                  <label class="form-label">Valor Mínimo</label>
-                  <input type="number" step="0.01" class="form-control" name="min_valor" placeholder="Ex: 100.000"/>
-                </div>
-                <div class="col-md-6 input-icon">
-                  <label class="form-label">Valor Máximo</label>
-                  <input type="number" step="0.01" class="form-control" name="max_valor" placeholder="Ex: 500.000"/>
-                </div>
-              </div>
-              <div class="row gx-3 mb-3">
-                <div class="col-md-6">
+              <div class="filter-group">
+
+                <!-- Status -->
+                <div class="filter-column">
                   <label class="form-label">Status do Leilão</label>
                   <select class="form-select" name="status_filter">
                     <option value="">Todos</option>
@@ -250,121 +250,55 @@
                     <option value="encerrado">Encerrado</option>
                   </select>
                 </div>
-                <div class="col-md-6">
+
+                <!-- Estados -->
+                <div class="filter-column">
                   <label class="form-label">Estados (opcional)</label>
-                  <div class="states-container">
-                    <ul class="states-list">
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-ac" value="AC">
-                        <label for="st-ac">AC</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-al" value="AL">
-                        <label for="st-al">AL</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-ap" value="AP">
-                        <label for="st-ap">AP</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-am" value="AM">
-                        <label for="st-am">AM</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-ba" value="BA">
-                        <label for="st-ba">BA</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-ce" value="CE">
-                        <label for="st-ce">CE</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-df" value="DF">
-                        <label for="st-df">DF</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-es" value="ES">
-                        <label for="st-es">ES</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-go" value="GO">
-                        <label for="st-go">GO</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-ma" value="MA">
-                        <label for="st-ma">MA</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-mg" value="MG">
-                        <label for="st-mg">MG</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-ms" value="MS">
-                        <label for="st-ms">MS</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-mt" value="MT">
-                        <label for="st-mt">MT</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-pa" value="PA">
-                        <label for="st-pa">PA</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-pb" value="PB">
-                        <label for="st-pb">PB</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-pr" value="PR">
-                        <label for="st-pr">PR</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-pe" value="PE">
-                        <label for="st-pe">PE</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-pi" value="PI">
-                        <label for="st-pi">PI</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-rj" value="RJ">
-                        <label for="st-rj">RJ</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-rn" value="RN">
-                        <label for="st-rn">RN</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-rs" value="RS">
-                        <label for="st-rs">RS</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-ro" value="RO">
-                        <label for="st-ro">RO</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-rr" value="RR">
-                        <label for="st-rr">RR</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-sc" value="SC">
-                        <label for="st-sc">SC</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-se" value="SE">
-                        <label for="st-se">SE</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-sp" value="SP">
-                        <label for="st-sp">SP</label>
-                      </li>
-                      <li class="state-item">
-                        <input type="checkbox" name="states" id="st-to" value="TO">
-                        <label for="st-to">TO</label>
-                      </li>
+                  <div class="scrollable-list">
+                    <ul>
+                      <li><input type="checkbox" name="states" id="st-ac" value="AC"><label for="st-ac">AC</label></li>
+                      <li><input type="checkbox" name="states" id="st-al" value="AL"><label for="st-al">AL</label></li>
+                      <li><input type="checkbox" name="states" id="st-ap" value="AP"><label for="st-ap">AP</label></li>
+                      <li><input type="checkbox" name="states" id="st-am" value="AM"><label for="st-am">AM</label></li>
+                      <li><input type="checkbox" name="states" id="st-ba" value="BA"><label for="st-ba">BA</label></li>
+                      <li><input type="checkbox" name="states" id="st-ce" value="CE"><label for="st-ce">CE</label></li>
+                      <li><input type="checkbox" name="states" id="st-df" value="DF"><label for="st-df">DF</label></li>
+                      <li><input type="checkbox" name="states" id="st-es" value="ES"><label for="st-es">ES</label></li>
+                      <li><input type="checkbox" name="states" id="st-go" value="GO"><label for="st-go">GO</label></li>
+                      <li><input type="checkbox" name="states" id="st-ma" value="MA"><label for="st-ma">MA</label></li>
+                      <li><input type="checkbox" name="states" id="st-mg" value="MG"><label for="st-mg">MG</label></li>
+                      <li><input type="checkbox" name="states" id="st-ms" value="MS"><label for="st-ms">MS</label></li>
+                      <li><input type="checkbox" name="states" id="st-mt" value="MT"><label for="st-mt">MT</label></li>
+                      <li><input type="checkbox" name="states" id="st-pa" value="PA"><label for="st-pa">PA</label></li>
+                      <li><input type="checkbox" name="states" id="st-pb" value="PB"><label for="st-pb">PB</label></li>
+                      <li><input type="checkbox" name="states" id="st-pr" value="PR"><label for="st-pr">PR</label></li>
+                      <li><input type="checkbox" name="states" id="st-pe" value="PE"><label for="st-pe">PE</label></li>
+                      <li><input type="checkbox" name="states" id="st-pi" value="PI"><label for="st-pi">PI</label></li>
+                      <li><input type="checkbox" name="states" id="st-rj" value="RJ"><label for="st-rj">RJ</label></li>
+                      <li><input type="checkbox" name="states" id="st-rn" value="RN"><label for="st-rn">RN</label></li>
+                      <li><input type="checkbox" name="states" id="st-rs" value="RS"><label for="st-rs">RS</label></li>
+                      <li><input type="checkbox" name="states" id="st-ro" value="RO"><label for="st-ro">RO</label></li>
+                      <li><input type="checkbox" name="states" id="st-rr" value="RR"><label for="st-rr">RR</label></li>
+                      <li><input type="checkbox" name="states" id="st-sc" value="SC"><label for="st-sc">SC</label></li>
+                      <li><input type="checkbox" name="states" id="st-se" value="SE"><label for="st-se">SE</label></li>
+                      <li><input type="checkbox" name="states" id="st-sp" value="SP"><label for="st-sp">SP</label></li>
+                      <li><input type="checkbox" name="states" id="st-to" value="TO"><label for="st-to">TO</label></li>
                     </ul>
                   </div>
-                  <small class="text-secondary">Se nenhum estiver marcado, todos os estados serão raspados.</small>
+                  <small class="text-secondary d-block mt-1">
+                    Se nenhum estiver marcado, todos os estados serão raspados.
+                  </small>
+                </div>
+
+                <!-- Cidades -->
+                <div class="filter-column">
+                  <label class="form-label">Cidades (opcional)</label>
+                  <div id="cities-container" class="scrollable-list">
+                    <ul id="cities-list"></ul>
+                  </div>
+                  <small class="text-secondary d-block mt-1">
+                    Se nenhum estiver marcado, todas as cidades serão raspadas.
+                  </small>
                 </div>
               </div>
             </div>
@@ -410,6 +344,37 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    const stateChecks = document.querySelectorAll('input[name="states"]');
+    const citiesList   = document.getElementById('cities-list');
+
+    async function fetchCities(uf) {
+      const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`);
+      return await res.json();
+    }
+
+    async function updateCities() {
+      citiesList.innerHTML = '';
+      const selectedUFs = Array.from(stateChecks)
+        .filter(chk => chk.checked)
+        .map(chk => chk.value);
+      if (!selectedUFs.length) return;
+      const allCities = {};
+      for (const uf of selectedUFs) {
+        const municipios = await fetchCities(uf);
+        municipios.forEach(m => allCities[m.nome] = true);
+      }
+      Object.keys(allCities).sort().forEach((cidade,i) => {
+        const id = `city-${i}`;
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <input type="checkbox" name="cities" id="${id}" value="${cidade}">
+          <label for="${id}">${cidade}</label>
+        `;
+        citiesList.appendChild(li);
+      });
+    }
+
+    stateChecks.forEach(chk => chk.addEventListener('change', updateCities));
     document.getElementById('selectAllSites').addEventListener('click', () => {
       document.querySelectorAll('input[name="sites"]').forEach(chk => chk.checked = true);
     });
