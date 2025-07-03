@@ -7,6 +7,7 @@ import pandas as pd
 from scrapers.megaleiloes import run as scrape_mega
 from scrapers.vivaleiloes import run as scrape_viva
 from scrapers.saraivaleiloes import run as scrape_saraiva
+from scrapers.leilaobrasil import run as scrape_brasil
 
 # Excel styling
 from openpyxl.styles import Font, PatternFill
@@ -43,6 +44,8 @@ async def scrape(
         dfs["Viva Leilões"]  = scrape_viva(pages_int)
     if "saraiva_leiloes" in sites:
         dfs["Saraiva Leilões"] = scrape_saraiva(pages_int)
+    if "brasil_leiloes" in sites:
+        dfs["Brasil Leilões"] = scrape_brasil(pages_int)
 
     # --- prepara listas para filtro de estados e cidades ---
     selected_ufs    = [uf.upper() for uf in (states or [])]
@@ -142,3 +145,5 @@ async def scrape(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="leiloes.xlsx"'}
     )
+
+# uvicorn main:app --reload --host 127.0.0.1 --port 8080
