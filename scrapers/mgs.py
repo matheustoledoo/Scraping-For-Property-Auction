@@ -1,0 +1,169 @@
+import time
+import logging
+from typing import List, Tuple
+
+import pandas as pd
+import chromedriver_autoinstaller
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+BASE_URL = (
+    "https://fidalgoleiloes.com.br/pesquisa.php?chk[]=1.0&chk[]=1.1&chk[]=1.2&chk[]=1.3&chk[]=1.4&openFilter=1&pagina={page}"
+)
+
+
+def init_driver() -> webdriver.Chrome:
+    """
+    Instala e inicializa o ChromeDriver em modo headless.
+    """
+    chromedriver_autoinstaller.install()
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(options=options)
+    return driver
+
+
+def collect_links(driver: webdriver.Chrome, pages: int) -> List[Tuple[str, str]]:
+    """
+    Coleta todos os links de imóveis e seus status. Se pages < 0, varre até não encontrar mais cards.
+    Retorna lista de tuplas (link, status).
+    """
+    all_links = []
+    current_page = 1
+
+    while True:
+        if pages >= 0 and current_page > pages:
+            break
+
+        url = BASE_URL.format(page=current_page)
+        logger.info(f"Acessando página {current_page}: {url}")
+        driver.get(url)
+        time.sleep(3)
+
+        cards = driver.find_elements(By.XPATH,
+            '//div[contains(@class, "col-md-6 col-lg-4 mb-4")]'
+        )
+        logger.info(f"Encontrados {len(cards)} imóveis na página {current_page}.")
+        if not cards:
+            break
+
+        for card in cards:
+            try:
+                status = card.find_element(
+                    By.XPATH, '/html/body/div[2]/main/div/div/div/div[2]/div[1]/div[2]/div/div/div/div[3]/div[4]/div[1]/div'
+                ).text.strip()
+            except Exception:
+                status = ""
+            try:
+                # busca a DIV flex-1 dentro de 'card' e, a partir dela, o A
+                link_elem = card.find_element(
+                    By.XPATH,
+                    './/div[contains(@class, "d-block lote-imagem")]/a'
+                )
+                link = link_elem.get_attribute('href')
+            except Exception:
+                continue
+
+            all_links.append((link, status))
+
+        current_page += 1
+
+    return all_links
+
+
+def process_links(driver: webdriver.Chrome, link_status: List[Tuple[str, str]]) -> List[dict]:
+    """
+    Visita cada link de imóvel, extrai informações e retorna lista de dicionários.
+    """
+    results = []
+
+    for idx, (link, status) in enumerate(link_status, start=1):
+        logger.info(f"Processando {idx}/{len(link_status)}: {link}")
+        driver.execute_script("window.open(arguments[0]);", link)
+        driver.switch_to.window(driver.window_handles[-1])
+        time.sleep(2)
+
+        data = {"link": link, "status": status}
+
+        # Helpers para extrair campos
+        def get_text(xpath: str) -> str:
+            try:
+                return driver.find_element(By.XPATH, xpath).text.strip()
+            except Exception:
+                return None
+
+        # pega a string completa, ex:
+        raw_loc = get_text('/html/body/div[2]/section/div/div/div[3]/div[1]/article/div/div[2]/div[1]/span/a') or get_text('/html/body/div[2]/section/div/div/div[3]/div[1]/article/div/div/div[1]/span/a')
+        if raw_loc:
+            # separa em partes pelo caractere “-”
+            parts = [p.strip() for p in raw_loc.split('/')]
+            if len(parts) >= 2:
+                # o último elemento é sempre o estado
+                estado = parts[-1]
+                # o penúltimo elemento é a cidade
+                cidade = parts[-2]
+            else:
+                cidade = None
+                estado = None
+        else:
+            cidade = None
+            estado = None
+
+        data.update({
+            "titulo_leilao": get_text('/html/body/div[2]/section/div/div/div[3]/div[1]/div[1]/div[1]/fieldset/h2') or get_text('/html/body/div[2]/section/div/div/div[3]/div[1]/div[1]/div[1]/fieldset/legend'),
+            "cidade": cidade,
+            "estado": estado,
+            "tipo_leilao": get_text('/html/body/div[2]/section/div/div/div[3]/div[2]/div[1]/div[1]/div[1]/div'),
+            "numero_processo": get_text(
+                '/html/body/div[2]/section/div/div/div[3]/div[1]/article/div/span/a'
+            ) or get_text('//a[contains(@class, "fore-1")]'),
+            "valor_imovel": get_text('/html/body/div[2]/main/div/div/div/div[2]/div[1]/div[1]/div/div/div/div[3]/div[3]/text()[2]') or get_text('/html/body/div[2]/main/div/div/div/div[2]/div[1]/div[1]/div/div/div/div[3]/div[3]') or get_text('/html/body/div[2]/section/div/div/div[3]/div[1]/article/div/div/div[2]/strong') or get_text('//div[contains(@class, "loteCartaInicial pt-1")]'),
+            "edital_leilao": driver.find_element(
+                By.XPATH, '/html/body/section[4]/div/div[2]/div/div[2]/div/div[2]/div[2]/ul/li/a'
+            ).get_attribute('href') if driver.find_elements(
+                By.XPATH, '/html/body/section[4]/div/div[2]/div/div[2]/div/div[2]/div[2]/ul/li/a'
+            ) else None,
+            "laudo_avaliacao": driver.find_element(
+                By.XPATH, '/html/body/section[4]/div/div[2]/div/div[2]/div/div[2]/div[2]/ul/li[1]/a'
+            ).get_attribute('href') if driver.find_elements(
+                By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[3]'
+            ) else None,
+            "matricula": driver.find_element(
+                By.XPATH, '/html/body/div[2]/section/div/div/div[3]/div[1]/div[2]/div/div/div/span[1]'
+            ).get_attribute('href') if driver.find_elements(
+                By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[3]/div[2]/a[4]'
+            ) else None,
+            "descricao_lote": get_text('/html/body/section[4]/div/div[2]/div/div[6]/div[1]/span')
+        })
+
+        results.append(data)
+
+        # Fecha aba e retorna
+        driver.close()
+        driver.switch_to.window(driver.window_handles[0])
+        time.sleep(1)
+
+    return results
+
+
+def run(pages: int) -> pd.DataFrame:
+    """
+    Executa todo o fluxo de scraping e retorna um DataFrame com os dados.
+    pages: número de páginas a raspar; -1 para todas.
+    """
+    driver = init_driver()
+    try:
+        links = collect_links(driver, pages)
+        raw_data = process_links(driver, links)
+    finally:
+        driver.quit()
+
+    df = pd.DataFrame(raw_data)
+    return df
