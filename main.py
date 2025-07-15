@@ -9,6 +9,7 @@ from scrapers.vivaleiloes import run as scrape_viva
 from scrapers.saraivaleiloes import run as scrape_saraiva
 from scrapers.leilaobrasil import run as scrape_brasil
 from scrapers.mgs import run as scrape_mgs
+from scrapers.francoleiloes import run as scrape_franco
 
 # Excel styling
 from openpyxl.styles import Font, PatternFill
@@ -49,6 +50,8 @@ async def scrape(
         dfs["Brasil Leilões"] = scrape_brasil(pages_int)
     if "mgs_leiloes" in sites:
         dfs["MGS Leilões"] = scrape_mgs(pages_int)
+    if "franco_leiloes" in sites:
+        dfs["Franco Leilões"] = scrape_franco(pages_int)
 
     # --- prepara listas para filtro de estados e cidades ---
     selected_ufs    = [uf.upper() for uf in (states or [])]
