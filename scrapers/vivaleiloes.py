@@ -96,9 +96,9 @@ def process_links(driver: webdriver.Chrome, link_status: List[Tuple[str, str]]) 
         # Extrai raw de cidade/estado e separa
         raw_loc = get_text('/html/body/main/div/section/div/div/div/div[1]/div[2]')
         if raw_loc:
-            parts = raw_loc.split('/', 1)
-            cidade = parts[0].strip()
-            estado = parts[1].strip()
+            parts = [p.strip() for p in raw_loc.split('/', 1)]
+            cidade = parts[0] if parts else None
+            estado = parts[1] if len(parts) > 1 else None
         else:
             cidade = None
             estado = None
